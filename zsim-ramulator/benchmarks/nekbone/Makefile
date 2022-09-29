@@ -19,4 +19,4 @@ format:
 	clang-format -i *.cpp *.hpp
 
 clean:
-	rm -f kernels kernels_offload
+	rm -f kernels kernels_offload *.o
