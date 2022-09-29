@@ -4,7 +4,7 @@ CFLAGS = -g -fopenmp -O2
 
 all: kernels kernels_offload
 
-OBJS = gs-setup.o
+OBJS = gs.o
 
 %.o : %.cpp
 	$(CC) $(CFLAGS) -c $< -o $@
