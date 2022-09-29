@@ -4,11 +4,16 @@ CFLAGS = -g -fopenmp -O2
 
 all: kernels kernels_offload
 
-kernels: kernels.cpp
-	$(CC) $(CFLAGS) $< -o $@
+OBJS = gs-setup.o
 
-kernels_offload: kernels.cpp
-	$(CC) $(CFLAGS) -DOMP_OFFLOAD $< -o $@
+%.o : %.cpp
+	$(CC) $(CFLAGS) -c $< -o $@
+
+kernels: kernels.cpp $(OBJS)
+	$(CC) $(CFLAGS) $< -o $@ $(OBJS)
+
+kernels_offload: kernels.cpp $(OBJS)
+	$(CC) $(CFLAGS) -DOMP_OFFLOAD $< -o $@ $(OBJS)
 
 format:
 	clang-format -i *.cpp *.hpp

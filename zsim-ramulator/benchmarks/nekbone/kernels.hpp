@@ -3,8 +3,9 @@
 
 #define scalar double
 
-int gs_setup(unsigned *n, unsigned **off, unsigned **ids, unsigned nelt,
-             unsigned nx1, unsigned ndim, unsigned verbose);
+struct gs_data;
+struct gs_data *gs_setup(unsigned nelt, unsigned nx1, unsigned ndim,
+                         unsigned verbose);
 int gs(scalar *u, unsigned n, unsigned *off, unsigned *id);
 
 #endif

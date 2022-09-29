@@ -1,6 +1,12 @@
 #include "kernels.hpp"
 #include <cassert>
+#include <cmath>
+#include <cstdio>
 #include <cstdlib>
+
+struct gs_data {
+  unsigned n, *off, *ids;
+};
 
 struct gid {
   unsigned long gid;
@@ -23,8 +29,8 @@ static int cmp_dofs(const void *a, const void *b) {
     return -1;
 }
 
-int gs_setup(unsigned *gs_n, unsigned **gs_off_, unsigned **gs_ids_,
-             unsigned nelt, unsigned nx1, unsigned ndim, unsigned verbose) {
+struct gs_data *gs_setup(unsigned nelt, unsigned nx1, unsigned ndim,
+                         unsigned verbose) {
   if (ndim != 3) {
     fprintf(stderr, "Only ndim = 3 is supported as of now.");
     exit(1);
@@ -50,7 +56,6 @@ int gs_setup(unsigned *gs_n, unsigned **gs_off_, unsigned **gs_ids_,
 
   unsigned ndofs = nelt * nx1 * nx1 * nx1;
   unsigned long *gids = (unsigned long *)calloc(ndofs, sizeof(unsigned long));
-
   unsigned i, j, k, nn = nx1 - 1;
   for (unsigned e = 0, dof = 0; e < nelt; e++) {
     // e = eg since we use only use one processor for now
@@ -82,6 +87,7 @@ int gs_setup(unsigned *gs_n, unsigned **gs_off_, unsigned **gs_ids_,
     dofs[dof].gid = gids[dof];
     dofs[dof].idx = dof;
   }
+  free(gids);
 
   qsort(dofs, ndofs, sizeof(struct gid), cmp_dofs);
 
@@ -97,27 +103,28 @@ int gs_setup(unsigned *gs_n, unsigned **gs_off_, unsigned **gs_ids_,
     }
   }
 
-  *gs_n = udofs;
-  unsigned *gs_off = *gs_off_ = (unsigned *)calloc(udofs + 1, sizeof(unsigned));
-  unsigned *gs_ids = *gs_ids_ = (unsigned *)calloc(gsdofs, sizeof(unsigned));
+  struct gs_data *gsd = (struct gs_data *)calloc(1, sizeof(struct gs_data));
+  gsd->n = udofs;
+  gsd->off = (unsigned *)calloc(udofs + 1, sizeof(unsigned));
+  gsd->ids = (unsigned *)calloc(gsdofs, sizeof(unsigned));
 
   udofs = 0;
-  gs_off[0] = 0;
+  gsd->off[0] = 0;
   for (unsigned dof = 1, prev = 0; dof < ndofs; dof++) {
     if (dofs[dof].gid != dofs[prev].gid) {
       if ((dof - prev) > 1) {
-        for (e = prev; e < dof; e++)
-          gs_ids[gs_off[udofs] + e - prev] = dofs[e].idx;
+        for (unsigned e = prev; e < dof; e++)
+          gsd->ids[gsd->off[udofs] + e - prev] = dofs[e].idx;
         udofs++;
-        gs_off[udofs] = gs_off[udofs - 1] + dof - prev;
+        gsd->off[udofs] = gsd->off[udofs - 1] + dof - prev;
       }
       prev = dof;
     }
   }
   // Sanity check
-  assert(gs_off[udofs] == gsdofs);
+  assert(gsd->off[udofs] == gsdofs);
 
-  free(gids), free(dofs);
+  free(dofs);
 
   return 0;
 }
