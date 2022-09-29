@@ -2,13 +2,13 @@
 CC = g++
 CFLAGS = -g -fopenmp -O2
 
-all: copy copy_offload
+all: kernels
 
-copy: copy.cpp
+kernels: kernels.cpp
 	$(CC) $(CFLAGS) $< -o $@
 
-copy_offload: copy.cpp
+kernels_offload: kernels.cpp
 	$(CC) $(CFLAGS) -DOMP_OFFLOAD $< -o $@
 
 clean:
-	rm -f copy
+	rm -f kernels
