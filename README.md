@@ -237,8 +237,8 @@ from `zsim-ramulator` directory, do:
 ./build/opt/zsim sample_configs/pim.cfg
 ```
 
-These will generate the trace files under `zsim-ramulator` (`rodiniaBFS.out.*`,
-`rodiniaBFS-prefetcher.out.*`, `pim-rodiniaBFS.out.*`, respectively).
+These will generate the trace files under `zsim-ramulator` (`rodiniaBFS_host.out.*`,
+`rodiniaBFS_host_prefetch.out.*`, `rodiniaBFS_pim.out.*`, respectively).
 
 ## Running Ramulator
 
