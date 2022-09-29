@@ -2,7 +2,7 @@
 CC = g++
 CFLAGS = -g -fopenmp -O2
 
-all: kernels
+all: kernels kernels_offload
 
 kernels: kernels.cpp
 	$(CC) $(CFLAGS) $< -o $@
@@ -10,5 +10,8 @@ kernels: kernels.cpp
 kernels_offload: kernels.cpp
 	$(CC) $(CFLAGS) -DOMP_OFFLOAD $< -o $@
 
+format:
+	clang-format -i kernels.cpp
+
 clean:
-	rm -f kernels
+	rm -f kernels kernels_offload

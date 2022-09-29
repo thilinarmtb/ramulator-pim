@@ -6,24 +6,83 @@
 
 #include "../../misc/hooks/zsim_hooks.h"
 
-void copy(unsigned n, double *a, double *b) {
+#define M 10
+
+void copy(double *a, double *b, unsigned n) {
 #if defined(OMP_OFFLOAD)
 #pragma omp target
   {
 #endif
+
     zsim_PIM_function_begin();
 #pragma omp parallel for
     for (unsigned i = 0; i < n; i++)
       a[i] = b[i];
     zsim_PIM_function_end();
+
+#if defined(OMP_OFFLOAD)
+  }
+#endif
+}
+
+void add2s1(double *a, double *b, double c, unsigned n) {
+#if defined(OMP_OFFLOAD)
+#pragma omp target
+  {
+#endif
+
+    zsim_PIM_function_begin();
+#pragma omp parallel for
+    for (unsigned i = 0; i < n; i++)
+      a[i] = c * a[i] + b[i];
+    zsim_PIM_function_end();
+
+#if defined(OMP_OFFLOAD)
+  }
+#endif
+}
+
+void add2s2(double *a, double *b, double c, unsigned n) {
+#if defined(OMP_OFFLOAD)
+#pragma omp target
+  {
+#endif
+
+    zsim_PIM_function_begin();
+#pragma omp parallel for
+    for (unsigned i = 0; i < n; i++)
+      a[i] = a[i] + c * b[i];
+    zsim_PIM_function_end();
+
+#if defined(OMP_OFFLOAD)
+  }
+#endif
+}
+
+void glsc3(double *a, double *b, double *c, unsigned n) {
+#if defined(OMP_OFFLOAD)
+#pragma omp target
+  {
+#endif
+
+    double sum = 0;
+    zsim_PIM_function_begin();
+#pragma omp parallel for reduction(+ : sum)
+    for (unsigned i = 0; i < n; i++)
+      sum += a[i] * b[i] * c[i];
+    zsim_PIM_function_end();
+
 #if defined(OMP_OFFLOAD)
   }
 #endif
 }
 
 int main(int argc, char **argv) {
-  if (argc != 3) {
-    fprintf(stderr, "Usage: %s <num_threads> <problem_size>\n", argv[0]);
+  if (argc != 5) {
+    fprintf(stderr,
+            "Usage: %s <num_threads> <number_of_elements> <polynomial_order> "
+            "<kernel_id>\n",
+            argv[0]);
     exit(1);
   }
 
@@ -31,15 +90,22 @@ int main(int argc, char **argv) {
   unsigned num_threads = atoi(argv[1]);
   omp_set_num_threads(num_threads);
 
+  // Allocate the vectors
+  unsigned E = atoi(argv[2]);
+  unsigned p = atoi(argv[3]);
+  unsigned dofs = E * (p + 1) * (p + 1) * (p + 1);
+
   // Init random number generation
   srand((unsigned)time(NULL));
+  double alpha = (double)(M * rand() + 0.5) / RAND_MAX;
+  double *a = (double *)calloc(dofs, sizeof(double));
+  double *b = (double *)calloc(dofs, sizeof(double));
+  double *c = (double *)calloc(dofs, sizeof(double));
 
-  // Allocate the vectors
-  unsigned n = atoi(argv[2]);
-  double *vec_a = (double *)calloc(2 * n, sizeof(double)), *vec_b = vec_a + n;
-  for (unsigned i = 0; i < n; i++) {
-    vec_a[i] = (double)(3 * rand() + 0.5) / RAND_MAX;
-    vec_b[i] = (double)(3 * rand() + 0.5) / RAND_MAX;
+  for (unsigned i = 0; i < dofs; i++) {
+    a[i] = (double)(M * rand() + 0.5) / RAND_MAX;
+    b[i] = (double)(M * rand() + 0.5) / RAND_MAX;
+    c[i] = (double)(M * rand() + 0.5) / RAND_MAX;
   }
 
   zsim_roi_begin();
@@ -51,19 +117,36 @@ int main(int argc, char **argv) {
     exit(1);
   }
   omp_set_default_device(0);
-#pragma omp target enter data map(to : vec_a [0:n], vec_b [0:n])
+#pragma omp target enter data map(to : a [0:dofs], b [0:dofs], c [0:dofs])
 #endif
 
-  // Call copy kernel
-  copy(n, vec_a, vec_b);
+  unsigned kernel = atoi(argv[4]);
+  switch (kernel) {
+  case 0:
+    // Call copy kernel
+    copy(a, b, dofs);
+    break;
+  case 1:
+    add2s1(a, b, alpha, dofs);
+    break;
+  case 2:
+    add2s2(a, b, alpha, dofs);
+    break;
+  case 3:
+    glsc3(a, b, c, dofs);
+    break;
+  default:
+    fprintf(stderr, "Invalid kernel id: %u\n", kernel);
+    break;
+  }
 
 #if defined(OMP_OFFLOAD)
-#pragma omp target exit data map(delete : vec_a [0:n], vec_b [0:n])
+#pragma omp target exit data map(delete : a [0:dofs], b [0:dofs], c [0:dofs])
 #endif
 
   zsim_roi_end();
 
-  free(vec_a);
+  free(a), free(b), free(c);
 
   return 0;
 }
