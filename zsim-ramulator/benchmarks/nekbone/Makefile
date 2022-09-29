@@ -11,7 +11,7 @@ kernels_offload: kernels.cpp
 	$(CC) $(CFLAGS) -DOMP_OFFLOAD $< -o $@
 
 format:
-	clang-format -i kernels.cpp
+	clang-format -i *.cpp *.hpp
 
 clean:
 	rm -f kernels kernels_offload

@@ -1,3 +1,4 @@
+#include "kernels.hpp"
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
@@ -8,7 +9,7 @@
 
 #define M 10
 
-void copy(double *a, double *b, unsigned n) {
+void copy(scalar *a, scalar *b, unsigned n) {
 #if defined(OMP_OFFLOAD)
 #pragma omp target
   {
@@ -25,7 +26,7 @@ void copy(double *a, double *b, unsigned n) {
 #endif
 }
 
-void add2s1(double *a, double *b, double c, unsigned n) {
+void add2s1(scalar *a, scalar *b, scalar c, unsigned n) {
 #if defined(OMP_OFFLOAD)
 #pragma omp target
   {
@@ -42,7 +43,7 @@ void add2s1(double *a, double *b, double c, unsigned n) {
 #endif
 }
 
-void add2s2(double *a, double *b, double c, unsigned n) {
+void add2s2(scalar *a, scalar *b, scalar c, unsigned n) {
 #if defined(OMP_OFFLOAD)
 #pragma omp target
   {
@@ -59,13 +60,13 @@ void add2s2(double *a, double *b, double c, unsigned n) {
 #endif
 }
 
-void glsc3(double *a, double *b, double *c, unsigned n) {
+void glsc3(scalar *a, scalar *b, scalar *c, unsigned n) {
 #if defined(OMP_OFFLOAD)
 #pragma omp target
   {
 #endif
 
-    double sum = 0;
+    scalar sum = 0;
     zsim_PIM_function_begin();
 #pragma omp parallel for reduction(+ : sum)
     for (unsigned i = 0; i < n; i++)
@@ -97,15 +98,15 @@ int main(int argc, char **argv) {
 
   // Init random number generation
   srand((unsigned)time(NULL));
-  double alpha = (double)(M * rand() + 0.5) / RAND_MAX;
-  double *a = (double *)calloc(dofs, sizeof(double));
-  double *b = (double *)calloc(dofs, sizeof(double));
-  double *c = (double *)calloc(dofs, sizeof(double));
+  scalar alpha = (scalar)(M * rand() + 0.5) / RAND_MAX;
+  scalar *a = (scalar *)calloc(dofs, sizeof(scalar));
+  scalar *b = (scalar *)calloc(dofs, sizeof(scalar));
+  scalar *c = (scalar *)calloc(dofs, sizeof(scalar));
 
   for (unsigned i = 0; i < dofs; i++) {
-    a[i] = (double)(M * rand() + 0.5) / RAND_MAX;
-    b[i] = (double)(M * rand() + 0.5) / RAND_MAX;
-    c[i] = (double)(M * rand() + 0.5) / RAND_MAX;
+    a[i] = (scalar)(M * rand() + 0.5) / RAND_MAX;
+    b[i] = (scalar)(M * rand() + 0.5) / RAND_MAX;
+    c[i] = (scalar)(M * rand() + 0.5) / RAND_MAX;
   }
 
   zsim_roi_begin();
@@ -122,18 +123,20 @@ int main(int argc, char **argv) {
 
   unsigned kernel = atoi(argv[4]);
   switch (kernel) {
-  case 0:
+  case 10:
     // Call copy kernel
     copy(a, b, dofs);
     break;
-  case 1:
+  case 20:
     add2s1(a, b, alpha, dofs);
     break;
-  case 2:
+  case 30:
     add2s2(a, b, alpha, dofs);
     break;
-  case 3:
+  case 40:
     glsc3(a, b, c, dofs);
+    break;
+  case 50:
     break;
   default:
     fprintf(stderr, "Invalid kernel id: %u\n", kernel);
