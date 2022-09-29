@@ -6,6 +6,7 @@
 struct gs_data;
 struct gs_data *gs_setup(unsigned nelt, unsigned nx1, unsigned ndim,
                          unsigned verbose);
-void gs(scalar *u, struct gs_data *gsh);
+void gs(scalar *u, struct gs_data *gsd);
+void gs_free(struct gs_data *gsd);
 
 #endif

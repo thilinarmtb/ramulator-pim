@@ -129,14 +129,22 @@ struct gs_data *gs_setup(unsigned nelt, unsigned nx1, unsigned ndim,
   return 0;
 }
 
-int gs(scalar *u, unsigned n, unsigned *off, unsigned *id) {
-  for (unsigned i = 0; i < n; i++) {
+void gs(scalar *u, struct gs_data *gsd) {
+  for (unsigned i = 0; i < gsd->n; i++) {
     scalar s = 0.0;
-    for (unsigned j = off[i]; j < off[i + 1]; j++)
-      s += u[id[j]];
-    for (unsigned j = off[i]; j < off[i + 1]; j++)
-      u[id[j]] = s;
+    for (unsigned j = gsd->off[i]; j < gsd->off[i + 1]; j++)
+      s += u[gsd->ids[j]];
+    for (unsigned j = gsd->off[i]; j < gsd->off[i + 1]; j++)
+      u[gsd->ids[j]] = s;
   }
+}
 
-  return 0;
+void gs_free(struct gs_data *gsh) {
+  if (gsh) {
+    if (gsh->ids)
+      free(gsh->ids);
+    if (gsh->off)
+      free(gsh->off);
+    free(gsh);
+  }
 }
