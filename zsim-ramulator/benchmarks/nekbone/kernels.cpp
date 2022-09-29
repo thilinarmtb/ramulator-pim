@@ -91,18 +91,17 @@ int main(int argc, char **argv) {
   unsigned num_threads = atoi(argv[1]);
   omp_set_num_threads(num_threads);
 
-  // Allocate the vectors
+  // Read in problem size and determine the vector size
   unsigned E = atoi(argv[2]);
   unsigned p = atoi(argv[3]);
   unsigned dofs = E * (p + 1) * (p + 1) * (p + 1);
 
-  // Init random number generation
+  // Allocate and initialize the vectors
   srand((unsigned)time(NULL));
   scalar alpha = (scalar)(M * rand() + 0.5) / RAND_MAX;
   scalar *a = (scalar *)calloc(dofs, sizeof(scalar));
   scalar *b = (scalar *)calloc(dofs, sizeof(scalar));
   scalar *c = (scalar *)calloc(dofs, sizeof(scalar));
-
   for (unsigned i = 0; i < dofs; i++) {
     a[i] = (scalar)(M * rand() + 0.5) / RAND_MAX;
     b[i] = (scalar)(M * rand() + 0.5) / RAND_MAX;
@@ -121,6 +120,7 @@ int main(int argc, char **argv) {
 #pragma omp target enter data map(to : a [0:dofs], b [0:dofs], c [0:dofs])
 #endif
 
+  struct gs_data *gsh = NULL;
   unsigned kernel = atoi(argv[4]);
   switch (kernel) {
   case 10:
@@ -137,6 +137,9 @@ int main(int argc, char **argv) {
     glsc3(a, b, c, dofs);
     break;
   case 50:
+    gsh = gs_setup(E, p + 1, 3, 1);
+    gs(a, gsh);
+    gs_free(gsh);
     break;
   default:
     fprintf(stderr, "Invalid kernel id: %u\n", kernel);

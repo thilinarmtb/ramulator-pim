@@ -130,6 +130,11 @@ struct gs_data *gs_setup(unsigned nelt, unsigned nx1, unsigned ndim,
 }
 
 void gs(scalar *u, struct gs_data *gsd) {
+  if (!gsd) {
+    fprintf(stderr, "struct gs_data is NULL.");
+    exit(1);
+  }
+
   for (unsigned i = 0; i < gsd->n; i++) {
     scalar s = 0.0;
     for (unsigned j = gsd->off[i]; j < gsd->off[i + 1]; j++)
