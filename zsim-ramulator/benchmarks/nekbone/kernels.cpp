@@ -9,6 +9,11 @@
 
 #define M 10
 
+static inline void init_vec(scalar *v, unsigned size) {
+  for (unsigned i = 0; i < size; i++)
+    v[i] = (M * rand() + 0.5) / RAND_MAX;
+}
+
 void copy(scalar *a, scalar *b, unsigned n) {
 #if defined(OMP_OFFLOAD)
 #pragma omp target
@@ -94,19 +99,33 @@ int main(int argc, char **argv) {
   // Read in problem size and determine the vector size
   unsigned E = atoi(argv[2]);
   unsigned p = atoi(argv[3]);
-  unsigned dofs = E * (p + 1) * (p + 1) * (p + 1);
+  unsigned nx1 = p + 1;
+  unsigned dofs = E * nx1 * nx1 * nx1;
 
-  // Allocate and initialize the vectors
+  // Fix the problem dimension to 3
+  const int ndim = 3;
+  const int ngeo = ((ndim + 1) * ndim) / 2;
+
+  // Random constant alpha
   srand((unsigned)time(NULL));
-  scalar alpha = (scalar)(M * rand() + 0.5) / RAND_MAX;
+  scalar alpha = (M * rand() + 0.5) / RAND_MAX;
+
+  // Allocate and initialize the vectors: a, b, c
   scalar *a = (scalar *)calloc(dofs, sizeof(scalar));
+  init_vec(a, dofs);
   scalar *b = (scalar *)calloc(dofs, sizeof(scalar));
+  init_vec(b, dofs);
   scalar *c = (scalar *)calloc(dofs, sizeof(scalar));
-  for (unsigned i = 0; i < dofs; i++) {
-    a[i] = (scalar)(M * rand() + 0.5) / RAND_MAX;
-    b[i] = (scalar)(M * rand() + 0.5) / RAND_MAX;
-    c[i] = (scalar)(M * rand() + 0.5) / RAND_MAX;
-  }
+  init_vec(c, dofs);
+
+  // For ax we need a few more vectors: g, D
+  scalar *g = (scalar *)calloc(ngeo * dofs, sizeof(scalar));
+  init_vec(g, ngeo * dofs);
+  scalar *D = (scalar *)calloc(nx1 * nx1, sizeof(scalar));
+  init_vec(D, nx1 * nx1);
+
+  // Work arrays for ax
+  scalar *wrk = (scalar *)calloc(ndim * nx1 * nx1 * nx1, sizeof(scalar));
 
   zsim_roi_begin();
 
@@ -137,10 +156,12 @@ int main(int argc, char **argv) {
     glsc3(a, b, c, dofs);
     break;
   case 50:
-    gsh = gs_setup(E, p + 1, 3, 1);
+    gsh = gs_setup(E, nx1, ndim, 1);
     gs(a, gsh);
     gs_free(gsh);
     break;
+  case 60:
+    ax_v00(b, E, nx1, a, ngeo, g, D, wrk);
   default:
     fprintf(stderr, "Invalid kernel id: %u\n", kernel);
     break;
@@ -152,7 +173,9 @@ int main(int argc, char **argv) {
 
   zsim_roi_end();
 
-  free(a), free(b), free(c);
+  free(a), free(b), free(c), free(g), free(D), free(wrk);
 
   return 0;
 }
+
+#undef M

@@ -1,19 +1,22 @@
 # C++ compiler and flags
 CC = g++
 CFLAGS = -g -fopenmp -O2
+OMP_OFFLOAD = 0
 
-all: kernels kernels_offload
+PP =
+ifneq ($(OMP_OFFLOAD), 0)
+  PP += -DOMP_OFFLOAD
+endif
 
-OBJS = gs.o
+all: kernels
+
+OBJS = gs.o ax.o
 
 %.o : %.cpp
-	$(CC) $(CFLAGS) -c $< -o $@
+	$(CC) $(CFLAGS) $(PP) -c $< -o $@
 
 kernels: kernels.cpp $(OBJS)
-	$(CC) $(CFLAGS) $< -o $@ $(OBJS)
-
-kernels_offload: kernels.cpp $(OBJS)
-	$(CC) $(CFLAGS) -DOMP_OFFLOAD $< -o $@ $(OBJS)
+	$(CC) $(CFLAGS) $(PP) $< -o $@ $(OBJS)
 
 format:
 	clang-format -i *.cpp *.hpp
