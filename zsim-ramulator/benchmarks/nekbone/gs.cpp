@@ -124,6 +124,11 @@ struct gs_data *gs_setup(unsigned nelt, unsigned nx1, unsigned ndim,
   // Sanity check
   assert(gsd->off[udofs] == gsdofs);
 
+#if defined(OMP_OFFLOAD)
+  unsigned *off = gsd->off, *ids = gsd->ids;
+#pragma omp target data map(to : off [0:udofs + 1], ids [0:gsdofs])
+#endif
+
   free(dofs);
 
   return 0;
@@ -135,6 +140,10 @@ void gs(scalar *u, struct gs_data *gsd) {
     exit(1);
   }
 
+#if defined(OMP_OFFLOAD)
+#pragma omp target teams
+#endif
+#pragma omp parallel for
   for (unsigned i = 0; i < gsd->n; i++) {
     scalar s = 0.0;
     for (unsigned j = gsd->off[i]; j < gsd->off[i + 1]; j++)

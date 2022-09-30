@@ -17,6 +17,10 @@ void ax_v00(scalar *w, unsigned E, unsigned nx1, const scalar *u, unsigned ngeo,
   scalar *ur = wrk, *us = ur + nx3, *ut = us + nx3;
   unsigned dofs = E * nx3;
 
+#if defined(OMP_OFFLOAD)
+#pragma omp target teams num_teams(E)
+#endif
+#pragma omp parallel for
   for (unsigned e = 0; e < E; e++) {
     for (unsigned i = 0; i < nx1; i++) {
       for (unsigned j = 0; j < nx1; j++) {

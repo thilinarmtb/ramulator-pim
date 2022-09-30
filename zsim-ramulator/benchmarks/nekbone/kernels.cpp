@@ -15,72 +15,48 @@ static inline void init_vec(scalar *v, unsigned size) {
 }
 
 void copy(scalar *a, scalar *b, unsigned n) {
+  zsim_PIM_function_begin();
 #if defined(OMP_OFFLOAD)
-#pragma omp target
-  {
+#pragma omp target teams
 #endif
-
-    zsim_PIM_function_begin();
 #pragma omp parallel for
-    for (unsigned i = 0; i < n; i++)
-      a[i] = b[i];
-    zsim_PIM_function_end();
-
-#if defined(OMP_OFFLOAD)
-  }
-#endif
+  for (unsigned i = 0; i < n; i++)
+    a[i] = b[i];
+  zsim_PIM_function_end();
 }
 
 void add2s1(scalar *a, scalar *b, scalar c, unsigned n) {
+  zsim_PIM_function_begin();
 #if defined(OMP_OFFLOAD)
-#pragma omp target
-  {
+#pragma omp target teams
 #endif
-
-    zsim_PIM_function_begin();
 #pragma omp parallel for
-    for (unsigned i = 0; i < n; i++)
-      a[i] = c * a[i] + b[i];
-    zsim_PIM_function_end();
-
-#if defined(OMP_OFFLOAD)
-  }
-#endif
+  for (unsigned i = 0; i < n; i++)
+    a[i] = c * a[i] + b[i];
+  zsim_PIM_function_end();
 }
 
 void add2s2(scalar *a, scalar *b, scalar c, unsigned n) {
+  zsim_PIM_function_begin();
 #if defined(OMP_OFFLOAD)
-#pragma omp target
-  {
+#pragma omp target teams
 #endif
-
-    zsim_PIM_function_begin();
 #pragma omp parallel for
-    for (unsigned i = 0; i < n; i++)
-      a[i] = a[i] + c * b[i];
-    zsim_PIM_function_end();
-
-#if defined(OMP_OFFLOAD)
-  }
-#endif
+  for (unsigned i = 0; i < n; i++)
+    a[i] = a[i] + c * b[i];
+  zsim_PIM_function_end();
 }
 
 void glsc3(scalar *a, scalar *b, scalar *c, unsigned n) {
+  zsim_PIM_function_begin();
+  scalar sum = 0;
 #if defined(OMP_OFFLOAD)
-#pragma omp target
-  {
+#pragma omp target teams
 #endif
-
-    scalar sum = 0;
-    zsim_PIM_function_begin();
 #pragma omp parallel for reduction(+ : sum)
-    for (unsigned i = 0; i < n; i++)
-      sum += a[i] * b[i] * c[i];
-    zsim_PIM_function_end();
-
-#if defined(OMP_OFFLOAD)
-  }
-#endif
+  for (unsigned i = 0; i < n; i++)
+    sum += a[i] * b[i] * c[i];
+  zsim_PIM_function_end();
 }
 
 int main(int argc, char **argv) {
@@ -121,11 +97,14 @@ int main(int argc, char **argv) {
   // For ax we need a few more vectors: g, D
   scalar *g = (scalar *)calloc(ngeo * dofs, sizeof(scalar));
   init_vec(g, ngeo * dofs);
-  scalar *D = (scalar *)calloc(nx1 * nx1, sizeof(scalar));
-  init_vec(D, nx1 * nx1);
+
+  unsigned nx2 = nx1 * nx1;
+  scalar *D = (scalar *)calloc(nx2, sizeof(scalar));
+  init_vec(D, nx2);
 
   // Work arrays for ax
-  scalar *wrk = (scalar *)calloc(ndim * nx1 * nx1 * nx1, sizeof(scalar));
+  unsigned wrk_size = ndim * nx1 * nx2;
+  scalar *wrk = (scalar *)calloc(wrk_size, sizeof(scalar));
 
   zsim_roi_begin();
 
@@ -136,7 +115,10 @@ int main(int argc, char **argv) {
     exit(1);
   }
   omp_set_default_device(0);
-#pragma omp target enter data map(to : a [0:dofs], b [0:dofs], c [0:dofs])
+#pragma omp target enter data map(to                                           \
+                                  : a [0:dofs], b [0:dofs], c [0:dofs],        \
+                                    g [0:6 * dofs], D [0:nx2],                 \
+                                    wrk [0:wrk_size])
 #endif
 
   struct gs_data *gsh = NULL;
@@ -168,7 +150,10 @@ int main(int argc, char **argv) {
   }
 
 #if defined(OMP_OFFLOAD)
-#pragma omp target exit data map(delete : a [0:dofs], b [0:dofs], c [0:dofs])
+#pragma omp target exit data map(delete                                        \
+                                 : a [0:dofs], b [0:dofs], c [0:dofs],         \
+                                   g [0:6 * dofs], D [0:nx2],                  \
+                                   wrk [0:wrk_size])
 #endif
 
   zsim_roi_end();
